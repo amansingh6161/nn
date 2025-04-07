@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Prediction Game (Continuous)</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      text-align: center;
+      padding: 20px;
+      background-color: #f0f8ff;
+      margin: 0;
+      color: #333;
+    }
+    h1 { font-size: 2.5em; margin-bottom: 10px; }
+    p { font-size: 1.2em; margin-bottom: 20px; }
+    .color-btn {
+      width: 80px;
+      height: 80px;
+      margin: 10px;
+      border: none;
+      cursor: pointer;
+      border-radius: 50%;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: transform 0.2s;
+    }
+    .color-btn:hover { transform: scale(1.15); }
+    #timer { font-size: 1.5em; font-weight: bold; color: #ff4500; margin: 10px; }
+    #result { margin-top: 20px; font-size: 1.3em; line-height: 1.6; max-width: 600px; margin-left: auto; margin-right: auto; }
+    #colorChoices { display: flex; justify-content: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <h1>Color Prediction Game</h1>
+  <p id="status">Connected players: 0</p>
+  
+  <div id="colorChoices">
+    <button class="color-btn" style="background-color: #ff4d4d;" onclick="chooseColor('Red')"></button>
+    <button class="color-btn" style="background-color: #4d79ff;" onclick="chooseColor('Blue')"></button>
+    <button class="color-btn" style="background-color: #4dff4d;" onclick="chooseColor('Green')"></button>
+  </div>
+  
+  <div id="timer">Timer: 10s</div>
+  <div id="result">Pick a color! Results every 10 seconds.</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const timerDisplay = document.getElementById('timer');
+    const resultDisplay = document.getElementById('result');
+    const statusDisplay = document.getElementById('status');
+    let myChoice = null;
+
+    socket.on('connect', () => {
+      socket.emit('joinGame');
+    });
+
+    socket.on('playerCount', (count) => {
+      statusDisplay.innerHTML = `Connected players: ${count}`;
+    });
+
+    socket.on('timerUpdate', (time) => {
+      timerDisplay.innerHTML = `Timer: ${time}s`;
+    });
+
+    socket.on('update', (msg) => {
+      resultDisplay.innerHTML = msg;
+    });
+
+    socket.on('gameResult', (result) => {
+      let resultText = `<strong>Results:</strong><br>`;
+      for (const color in result.choices) {
+        resultText += `${color}: ${result.choices[color]} players<br>`;
+      }
+      resultText += `<br><strong>Winner(s):</strong> ${result.winners.length ? result.winners.join(', ') + ` with ${result.minCount} pick(s)` : 'No one chose a color!' }<br>`;
+      if (myChoice && result.winners.includes(myChoice)) {
+        resultText += `<strong style="color: #4CAF50;">You win!</strong>`;
+      } else if (myChoice) {
+        resultText += `<strong style="color: #ff4d4d;">You lose!</strong>`;
+      } else {
+        resultText += `<strong style="color: #ff4d4d;">You didn’t pick!</strong>`;
+      }
+      resultDisplay.innerHTML = resultText;
+      myChoice = null;
+    });
+
+    function chooseColor(color) {
+      myChoice = color;
+      socket.emit('chooseColor', color);
+    }
+  </script>
+</body>
+</html>
